@@ -34,16 +34,26 @@ function main_menu {
 function block_ips {
     clear
     if ! command -v iptables &> /dev/null; then
-        apt-get update
-        apt-get install -y iptables
+        apt update
+        apt install -y iptables
     fi
+
     if ! dpkg -s iptables-persistent &> /dev/null; then
-        apt-get update
-        apt-get install -y iptables-persistent
+        apt update
+        apt install -y iptables-persistent
     fi
 
     if ! iptables -L abuse-defender -n >/dev/null 2>&1; then
         iptables -N abuse-defender
+    fi
+
+    if ! iptables -L abuse-defender-whitelist -n >/dev/null 2>&1; then
+        iptables -N abuse-defender-whitelist
+    fi
+
+
+    if ! iptables -L OUTPUT -n | grep -q "abuse-defender-whitelist"; then
+        iptables -I OUTPUT -j abuse-defender-whitelist
     fi
 
     if ! iptables -L OUTPUT -n | grep -q "abuse-defender"; then
@@ -58,6 +68,7 @@ function block_ips {
         read -p "Do you want to delete the previous rules? [Y/N] : " clear_rules
         if [[ $clear_rules == [Yy]* ]]; then
             iptables -F abuse-defender
+            iptables -F abuse-defender-whitelist
         fi
 
         IP_LIST=$(curl -s 'https://raw.githubusercontent.com/Kiya6955/Abuse-Defender/main/abuse-ips.ipv4')
@@ -114,7 +125,7 @@ function whitelist_ips {
     clear
     read -p "Enter IP-Ranges to whitelist (like 192.168.1.0/24): " ip_range
 
-    iptables -I abuse-defender -d $ip_range -j ACCEPT
+    iptables -I abuse-defender-whitelist -d $ip_range -j ACCEPT
 
     iptables-save > /etc/iptables/rules.v4
 
@@ -141,6 +152,7 @@ function block_custom_ips {
 function view_rules {
     clear
     iptables -L abuse-defender -n
+    iptables -L abuse-defender-whitelist -n
     read -p "Press Enter to return to Menu" dummy
     main_menu
 }
@@ -148,7 +160,10 @@ function view_rules {
 function clear_chain {
     clear
     iptables -F abuse-defender
+    iptables -F abuse-defender-whitelist
     sudo sed -i '/127.0.0.1 appclick.co/d' /etc/hosts
+    sudo sed -i '/127.0.0.1 pushnotificationws.com/d' /etc/hosts
+    crontab -l | grep -v "/root/abuse-defender-update.sh" | crontab -
     iptables-save > /etc/iptables/rules.v4
     clear
     echo "All Rules cleared successfully."
