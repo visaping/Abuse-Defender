@@ -51,12 +51,11 @@ function block_ips {
         iptables -N abuse-defender-whitelist
     fi
 
-
-    if ! iptables -L OUTPUT -n | grep -q "abuse-defender-whitelist"; then
+    if ! iptables -L OUTPUT -n | awk '{print $1}' | grep -wq "^abuse-defender-whitelist$"; then
         iptables -I OUTPUT -j abuse-defender-whitelist
     fi
 
-    if ! iptables -L OUTPUT -n | grep -q "abuse-defender"; then
+    if ! iptables -L OUTPUT -n | awk '{print $1}' | grep -wq "^abuse-defender$"; then
         iptables -I OUTPUT -j abuse-defender
     fi
 
@@ -73,7 +72,7 @@ function block_ips {
 
         IP_LIST=$(curl -s 'https://raw.githubusercontent.com/Kiya6955/Abuse-Defender/main/abuse-ips.ipv4')
 
-        if [ $? -ne 0 ]; then
+        if [ $? -ne 0 ] || [ -z "$IP_LIST" ]; then
             echo "Failed to fetch the IP-Ranges list. Please contact @Kiya6955"
             read -p "Press enter to return to Menu" dummy
             main_menu
@@ -82,8 +81,9 @@ function block_ips {
         for IP in $IP_LIST; do
             iptables -A abuse-defender -d $IP -j DROP
         done
-        echo '127.0.0.1 appclick.co' | sudo tee -a /etc/hosts
-        echo '127.0.0.1 pushnotificationws.com' | sudo tee -a /etc/hosts
+
+        echo '127.0.0.1 appclick.co' | tee -a /etc/hosts >/dev/null
+        echo '127.0.0.1 pushnotificationws.com' | tee -a /etc/hosts >/dev/null
         iptables-save > /etc/iptables/rules.v4
 
         clear
@@ -114,18 +114,18 @@ for IP in \$IP_LIST; do
 done
 iptables-save > /etc/iptables/rules.v4
 EOF
+
     chmod +x /root/abuse-defender-update.sh
-    
+
     crontab -l 2>/dev/null | grep -v "/root/abuse-defender-update.sh" | crontab -
     (crontab -l 2>/dev/null; echo "0 0 * * * /root/abuse-defender-update.sh") | crontab -
 }
-
 
 function whitelist_ips {
     clear
     read -p "Enter IP-Ranges to whitelist (like 192.168.1.0/24): " ip_range
 
-    iptables -I abuse-defender-whitelist -d $ip_range -j ACCEPT
+    iptables -I abuse-defender-whitelist -d "$ip_range" -j ACCEPT
 
     iptables-save > /etc/iptables/rules.v4
 
@@ -139,7 +139,7 @@ function block_custom_ips {
     clear
     read -p "Enter IP-Ranges to block (like 192.168.1.0/24): " ip_range
 
-    iptables -A abuse-defender -d $ip_range -j DROP
+    iptables -A abuse-defender -d "$ip_range" -j DROP
 
     iptables-save > /etc/iptables/rules.v4
 
@@ -151,8 +151,11 @@ function block_custom_ips {
 
 function view_rules {
     clear
-    iptables -L abuse-defender -n
-    iptables -L abuse-defender-whitelist -n
+    echo "===== abuse-defender Rules ====="
+    iptables -L abuse-defender -n --line-numbers
+    echo ""
+    echo "===== abuse-defender-whitelist Rules ====="
+    iptables -L abuse-defender-whitelist -n --line-numbers
     read -p "Press Enter to return to Menu" dummy
     main_menu
 }
@@ -161,8 +164,8 @@ function clear_chain {
     clear
     iptables -F abuse-defender
     iptables -F abuse-defender-whitelist
-    sudo sed -i '/127.0.0.1 appclick.co/d' /etc/hosts
-    sudo sed -i '/127.0.0.1 pushnotificationws.com/d' /etc/hosts
+    sed -i '/127.0.0.1 appclick.co/d' /etc/hosts
+    sed -i '/127.0.0.1 pushnotificationws.com/d' /etc/hosts
     crontab -l | grep -v "/root/abuse-defender-update.sh" | crontab -
     iptables-save > /etc/iptables/rules.v4
     clear
