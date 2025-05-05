@@ -47,12 +47,20 @@ function block_ips {
         iptables -N abuse-defender
     fi
 
+    if ! iptables -L abuse-defender-custom -n >/dev/null 2>&1; then
+        iptables -N abuse-defender-custom
+    fi
+
     if ! iptables -L abuse-defender-whitelist -n >/dev/null 2>&1; then
         iptables -N abuse-defender-whitelist
     fi
 
     if ! iptables -L OUTPUT -n | awk '{print $1}' | grep -wq "^abuse-defender-whitelist$"; then
         iptables -I OUTPUT -j abuse-defender-whitelist
+    fi
+
+    if ! iptables -L OUTPUT -n | awk '{print $1}' | grep -wq "^abuse-defender-custom$"; then
+        iptables -I OUTPUT -j abuse-defender-custom
     fi
 
     if ! iptables -L OUTPUT -n | awk '{print $1}' | grep -wq "^abuse-defender$"; then
@@ -67,6 +75,7 @@ function block_ips {
         read -p "Do you want to delete the previous rules? [Y/N] : " clear_rules
         if [[ $clear_rules == [Yy]* ]]; then
             iptables -F abuse-defender
+            iptables -F abuse-defender-custom
             iptables -F abuse-defender-whitelist
         fi
 
@@ -139,7 +148,7 @@ function block_custom_ips {
     clear
     read -p "Enter IP-Ranges to block (like 192.168.1.0/24): " ip_range
 
-    iptables -A abuse-defender -d "$ip_range" -j DROP
+    iptables -A abuse-defender-custom -d "$ip_range" -j DROP
 
     iptables-save > /etc/iptables/rules.v4
 
@@ -154,7 +163,10 @@ function view_rules {
     echo "===== abuse-defender Rules ====="
     iptables -L abuse-defender -n --line-numbers
     echo ""
+    echo "===== abuse-defender-custom Rules ====="
+    iptables -L abuse-defender-custom -n --line-numbers
     echo "===== abuse-defender-whitelist Rules ====="
+    echo ""
     iptables -L abuse-defender-whitelist -n --line-numbers
     read -p "Press Enter to return to Menu" dummy
     main_menu
@@ -163,6 +175,7 @@ function view_rules {
 function clear_chain {
     clear
     iptables -F abuse-defender
+    iptables -F abuse-defender-custom
     iptables -F abuse-defender-whitelist
     sed -i '/127.0.0.1 appclick.co/d' /etc/hosts
     sed -i '/127.0.0.1 pushnotificationws.com/d' /etc/hosts
