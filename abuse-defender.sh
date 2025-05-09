@@ -55,16 +55,17 @@ function block_ips {
         iptables -N abuse-defender-whitelist
     fi
 
-    if ! iptables -L OUTPUT -n | awk '{print $1}' | grep -wq "^abuse-defender-whitelist$"; then
-        iptables -I OUTPUT -j abuse-defender-whitelist
+
+    if ! iptables -L OUTPUT -n | awk '{print $1}' | grep -wq "^abuse-defender$"; then
+        iptables -I OUTPUT -j abuse-defender
     fi
 
     if ! iptables -L OUTPUT -n | awk '{print $1}' | grep -wq "^abuse-defender-custom$"; then
         iptables -I OUTPUT -j abuse-defender-custom
     fi
 
-    if ! iptables -L OUTPUT -n | awk '{print $1}' | grep -wq "^abuse-defender$"; then
-        iptables -I OUTPUT -j abuse-defender
+    if ! iptables -L OUTPUT -n | awk '{print $1}' | grep -wq "^abuse-defender-whitelist$"; then
+        iptables -I OUTPUT -j abuse-defender-whitelist
     fi
 
     clear
