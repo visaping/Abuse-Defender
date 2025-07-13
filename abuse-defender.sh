@@ -166,6 +166,7 @@ function view_rules {
     echo ""
     echo "===== abuse-defender-custom Rules ====="
     iptables -L abuse-defender-custom -n --line-numbers
+    echo ""
     echo "===== abuse-defender-whitelist Rules ====="
     echo ""
     iptables -L abuse-defender-whitelist -n --line-numbers
